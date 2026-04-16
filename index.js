@@ -10,6 +10,7 @@ let isReady = false;
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
+    executablePath: '/usr/bin/google-chrome-stable' ,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -38,7 +39,6 @@ client.on('disconnected', () => {
   isReady = false;
 });
 
-// QR code page
 app.get('/', (req, res) => {
   if (isReady) {
     res.send('<h1>✅ WhatsApp Connected!</h1><p>Bot is running and ready to send messages.</p>');
@@ -54,14 +54,11 @@ app.get('/', (req, res) => {
   }
 });
 
-// Send message endpoint - called by n8n
 app.post('/send', async (req, res) => {
   const { phone, message } = req.body;
-  
   if (!isReady) {
     return res.status(503).json({ error: 'WhatsApp not connected' });
   }
-  
   try {
     const chatId = phone.replace('+', '') + '@c.us';
     await client.sendMessage(chatId, message);
@@ -72,7 +69,6 @@ app.post('/send', async (req, res) => {
   }
 });
 
-// Status endpoint
 app.get('/status', (req, res) => {
   res.json({ connected: isReady });
 });
