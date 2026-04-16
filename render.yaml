@@ -1,9 +1,5 @@
 services:
   - type: web
     name: shiksha-whatsapp-bot
-    env: node
-    buildCommand: npm install && npx puppeteer browsers install chrome
-    startCommand: node index.js
-    envVars:
-      - key: NODE_ENV
-        value: production
+    env: docker
+    dockerfilePath: ./Dockerfile
