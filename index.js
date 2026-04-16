@@ -10,7 +10,6 @@ let isReady = false;
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -19,15 +18,13 @@ const client = new Client({
       '--no-first-run',
       '--no-zygote',
       '--single-process',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--disable-software-rasterizer'
+      '--disable-gpu'
     ]
   }
 });
 
 client.on('qr', async (qr) => {
-  console.log('QR code generated — visit the URL to scan');
+  console.log('QR code generated');
   qrCodeData = await qrcode.toDataURL(qr);
 });
 
@@ -36,81 +33,43 @@ client.on('ready', () => {
   isReady = true;
 });
 
-client.on('auth_failure', (msg) => {
-  console.error('Auth failure:', msg);
-  isReady = false;
-});
-
 client.on('disconnected', () => {
   console.log('WhatsApp disconnected');
   isReady = false;
 });
 
-// QR code page
 app.get('/', (req, res) => {
   if (isReady) {
-    res.send(`
-      <html>
-        <body style="font-family:sans-serif;text-align:center;padding:40px">
-          <h1 style="color:green">✅ WhatsApp Connected!</h1>
-          <p>Shiksha Nerd bot is running and ready to send messages.</p>
-        </body>
-      </html>
-    `);
+    res.send('<h1 style="color:green">✅ WhatsApp Connected!</h1>');
   } else if (qrCodeData) {
     res.send(`
-      <html>
-        <body style="font-family:sans-serif;text-align:center;padding:40px">
-          <h1>Scan QR Code with WhatsApp</h1>
-          <p>Open WhatsApp → Settings → Linked Devices → Link a Device</p>
-          <img src="${qrCodeData}" style="width:300px;border:1px solid #ddd;border-radius:8px"/>
-          <p style="color:gray">Refresh this page after scanning</p>
-          <script>setTimeout(() => location.reload(), 5000)</script>
-        </body>
-      </html>
+      <h1>Scan QR Code</h1>
+      <p>WhatsApp → Settings → Linked Devices → Link a Device</p>
+      <img src="${qrCodeData}" style="width:300px"/>
+      <script>setTimeout(()=>location.reload(),5000)</script>
     `);
   } else {
-    res.send(`
-      <html>
-        <body style="font-family:sans-serif;text-align:center;padding:40px">
-          <h1>Starting up...</h1>
-          <p>Refresh in 15 seconds</p>
-          <script>setTimeout(() => location.reload(), 5000)</script>
-        </body>
-      </html>
-    `);
+    res.send('<h1>Starting... refresh in 15 seconds</h1><script>setTimeout(()=>location.reload(),5000)</script>');
   }
 });
 
-// Send message endpoint - called by n8n
 app.post('/send', async (req, res) => {
   const { phone, message } = req.body;
-
-  if (!isReady) {
-    return res.status(503).json({ error: 'WhatsApp not connected yet' });
-  }
-
+  if (!isReady) return res.status(503).json({ error: 'WhatsApp not connected' });
   try {
     const chatId = phone.replace('+', '').replace(/\s/g, '') + '@c.us';
     await client.sendMessage(chatId, message);
-    console.log(`Message sent to ${phone}`);
-    res.json({ success: true, phone, message });
+    res.json({ success: true });
   } catch (err) {
-    console.error('Send error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Status endpoint
 app.get('/status', (req, res) => {
-  res.json({ connected: isReady, qrReady: !!qrCodeData });
+  res.json({ connected: isReady });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-client.initialize().catch(err => {
-  console.error('Failed to initialize client:', err.message);
-});
+client.initialize().catch(err => console.error('Failed:', err.message));
